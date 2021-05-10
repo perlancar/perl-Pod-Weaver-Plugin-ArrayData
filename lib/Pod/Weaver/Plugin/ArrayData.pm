@@ -42,18 +42,21 @@ sub _process_module {
 
     my $ad_name = $package;
     $ad_name =~ s/\AArrayData:://;
-    my ($name_entity, $name_entities, $varname);
+    my ($name_entity, $name_entities, $name_mod, $varname);
     if ($ad_name =~ /^Word::/) {
         $name_entity   = "word";
         $name_entities = "words";
+        $name_mod = 'ArrayData::Word';
         $varname = 'wl';
     } elsif ($ad_name =~ /^Phrase::/) {
         $name_entity   = "phrase";
         $name_entities = "phrases";
+        $name_mod = 'ArrayData::Phrase';
         $varname = 'pl';
     } else {
         $name_entity   = "element";
         $name_entities = "elements";
+        $name_mod = 'ArrayData';
         $varname = 'ary';
     }
 
@@ -68,15 +71,42 @@ sub _process_module {
         push @pod, " while (\$${varname}->has_next_item) {\n";
         push @pod, "     my \$$name_entity = \$${varname}->get_next_item;\n";
         push @pod, "     ... # do something about the $name_entity\n";
-        push @pod, " }\n\n";
+        push @pod, " }\n";
+        push @pod, "\n";
 
-        push @pod, " # Get $name_entities by position\n";
-        push @pod, " my \$$name_entity = \$${varname}->get_item_at_pos(2);\n";
+        push @pod, " # Another way to iterate\n";
+        push @pod, " \$${varname}->each_item(sub { my (\$item, \$obj, \$pos) = \@_; ... }); # return false in anonsub to exit early\n";
+        push @pod, "\n";
+
+        push @pod, " # Get $name_entities by position (array index)\n";
+        push @pod, " my \$$name_entity = \$${varname}->get_item_at_pos(0);  # get the first $name_entity\n";
+        push @pod, " my \$$name_entity = \$${varname}->get_item_at_pos(90); # get the 91th $name_entity, will die if there is no $name_entity at that position.\n";
+        push @pod, "\n";
+
+        push @pod, " # Get number of $name_entities in the list\n";
+        push @pod, " my \$count = \$${varname}->get_item_count;\n";
+        push @pod, "\n";
+
+        push @pod, " # Get all $name_entities from the list\n";
+        push @pod, " my \@all_$name_entities = \$${varname}->get_all_items;\n";
+        push @pod, "\n";
+
+        push @pod, " # Find an item (by iterating). See Role::TinyCommons::Collection::FindItem for more details.\n";
+        push @pod, " my \@found = \${$varname}->find_item(item => 'foo');\n";
+        push @pod, " my \$has_item = \${$varname}->has_item('foo'); # bool\n";
+        push @pod, "\n";
+
+        push @pod, " # Find an item by binary searching (only when data source is filehandle and the data is sorted)\n";
+        push @pod, " Role::Tiny->apply_roles_to_object(\$${varname}, 'ArrayData::BinarySearch::LinesInHandle');\n";
+        push @pod, " my \@found = \${$varname}->find_item(item => 'foo');\n";
+        push @pod, " my \$has_item = \${$varname}->has_item('foo'); # bool\n";
+        push @pod, "\n";
 
         push @pod, " # Pick one or several random $name_entities (apply one of these roles first: Role::TinyCommons::Collection::PickItems::{Iterator,RandomSeek})\n";
         push @pod, " Role::Tiny->apply_roles_to_object(\$${varname}, 'Role::TinyCommons::Collection::PickItems::Iterator');\n";
         push @pod, " my \$$name_entity = \${$varname}->pick_item;\n";
         push @pod, " my \@$name_entities = \${$varname}->pick_items(n=>3);\n\n";
+        push @pod, "\n";
 
         $self->add_text_to_section(
             $document, join("", @pod), 'SYNOPSIS',
@@ -87,19 +117,21 @@ sub _process_module {
             });
     } # ADD_SYNOPSIS_SECTION
 
-  ADD_WORDLIST_PARAMETERS_SECTION:
+  ADD_ARRAYDATA_MODULE_PARAMETERS_SECTION:
     {
-        my $params = \%{"$package\::PARAMS"};
-        last unless keys %$params;
+        my $meta = $package->can("meta") ? $package->meta : undef;
+        last unless $meta;
+        my $args = $meta->{args};
+        last unless keys %$args;
 
-        my $examples = \@{"$package\::EXAMPLES"};
+        my $examples = $meta->{examples};
         my $first_example_with_args = first { $_->{args} && keys %{ $_->{args} } } @$examples;
 
         my @pod;
 
         push @pod, <<_;
 
-This is a parameterized wordlist module. When loading in Perl, you can specify
+This is a parameterized $name_mod module. When loading in Perl, you can specify
 the parameters to the constructor, for example:
 
  use $package;
@@ -113,45 +145,45 @@ _
             $args = {foo=>1, bar=>2};
         }
 
-        push @pod, " my \$wl = $package\->(".
+        push @pod, " my \${$varname} = $package\->(".
             join(", ", map {"$_ => $args->{$_}"} sort keys %$args).");\n\n";
 
         push @pod, <<_;
 
 When loading on the command-line, you can specify parameters using the
-C<WORDLISTNAME=ARGNAME1,ARGVAL1,ARGNAME2,ARGVAL2> syntax, like in L<perl>'s
+C<ARRAYDATAMODNAME=ARGNAME1,ARGVAL1,ARGNAME2,ARGVAL2> syntax, like in L<perl>'s
 C<-M> option, for example:
 
 _
 
         if ($first_example_with_args) {
             my $eg = $first_example_with_args;
-            push @pod, " % wordlist -w $wl_name=",
+            push @pod, " % arraydata -m $ad_name=",
                 join(",", map { "$_=$eg->{args}{$_}" } sort keys %{ $eg->{args} }), "\n\n";
         } else {
-            push @pod, " % wordlist -w $wl_name=foo,1,bar,2 ...\n\n";
+            push @pod, " % arraydata -m $ad_name=foo,1,bar,2 ...\n\n";
         }
 
         push @pod, "Known parameters:\n\n";
-        for my $paramname (sort keys %$params) {
-            my $paramspec = $params->{$paramname};
-            push @pod, "=head2 $paramname\n\n";
-            push @pod, "Required. " if $paramspec->{req};
-            if (defined $paramspec->{summary}) {
+        for my $argname (sort keys %$args) {
+            my $argspec = $args->{$argname};
+            push @pod, "=head2 $argname\n\n";
+            push @pod, "Required. " if $argspec->{req};
+            if (defined $argspec->{summary}) {
                 require String::PodQuote;
-                push @pod, String::PodQuote::pod_quote($paramspec->{summary}), ".\n\n";
+                push @pod, String::PodQuote::pod_quote($argspec->{summary}), ".\n\n";
             }
-            push @pod, $self->_md2pod($paramspec->{description})
-                if $paramspec->{description};
+            push @pod, $self->_md2pod($argspec->{description})
+                if $argspec->{description};
         }
 
         $self->add_text_to_section(
-            $document, join("", @pod), 'WORDLIST PARAMETERS',
+            $document, join("", @pod), 'ARRAYDATA MODULE PARAMETERS',
             {
                 after_section => 'DESCRIPTION',
                 ignore => 1,
             });
-    } # ADD_WORDLIST_PARAMETERS_SECTION
+    } # ADD_ARRAYDATA_MODULE_PARAMETERS_SECTION
 
   ADD_STATISTICS_SECTION:
     {
@@ -167,7 +199,7 @@ _
         push @pod, "The statistics is available in the C<\%STATS> package variable.\n\n";
 
         $self->add_text_to_section(
-            $document, join("", @pod), 'WORDLIST STATISTICS',
+            $document, join("", @pod), 'ARRAYDATA MODULE STATISTICS',
             {
                 after_section => ['SYNOPSIS'],
                 before_section => 'DESCRIPTION',
@@ -184,7 +216,7 @@ sub weave_section {
     my $filename = $input->{filename};
 
     my $package;
-    if ($filename =~ m!^lib/(WordList/.+)\.pm$!) {
+    if ($filename =~ m!^lib/(ArrayData/.+)\.pm$!) {
         $package = $1;
         $package =~ s!/!::!g;
         $self->_process_module($document, $input, $package);
@@ -192,7 +224,7 @@ sub weave_section {
 }
 
 1;
-# ABSTRACT: Plugin to use when building WordList::* distribution
+# ABSTRACT: Plugin to use when building ArrayData::* distribution
 
 =for Pod::Coverage ^(weave_section)$
 
@@ -200,25 +232,25 @@ sub weave_section {
 
 In your F<weaver.ini>:
 
- [-WordList]
+ [-ArrayData]
 
 
 =head1 DESCRIPTION
 
-This plugin is to be used when building C<WordList::*> distribution. Currently
+This plugin is to be used when building C<ArrayData::*> distribution. Currently
 it does the following:
 
 =over
 
 =item * Add a Synopsis section (if doesn't already exist) showing how to use the module
 
-=item * Add WordList Statistics section showing statistics from C<%STATS> (which can be generated by DZP:WordList)
+=item * Add ArrayData Module Statistics section showing statistics from C<%STATS> (which can be generated by DZP:ArrayData)
 
 =back
 
 
 =head1 SEE ALSO
 
-L<WordList>
+L<ArrayData>
 
-L<Dist::Zilla::Plugin::WordList>
+L<Dist::Zilla::Plugin::ArrayData>
