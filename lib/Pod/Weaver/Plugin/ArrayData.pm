@@ -121,8 +121,8 @@ sub _process_module {
     {
         my $meta = $package->can("meta") ? $package->meta : undef;
         last unless $meta;
-        my $args = $meta->{args};
-        last unless keys %$args;
+        my $args_prop = $meta->{args};
+        last unless keys %$args_prop;
 
         my $examples = $meta->{examples};
         my $first_example_with_args = first { $_->{args} && keys %{ $_->{args} } } @$examples;
