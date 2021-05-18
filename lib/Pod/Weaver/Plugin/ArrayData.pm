@@ -98,7 +98,7 @@ sub _process_module {
         push @pod, "\n";
 
         push @pod, " # Find an item by binary searching (only when data source is filehandle and the data is sorted). See ArrayDataRole::BinarySearch::LinesInHandle for more details.\n";
-        push @pod, " \$$varname\->apply_roles('BinarySearch::LinesInHandle'); # or: \$$varname = $package->new->apply_roles(...);\n"
+        push @pod, " \$$varname\->apply_roles('BinarySearch::LinesInHandle'); # or: \$$varname = $package->new->apply_roles(...);\n";
         push @pod, " my \@found = \$$varname\->find_item(item => 'foo');\n";
         push @pod, " my \$has_item = \$$varname\->has_item('foo'); # bool\n";
         push @pod, "\n";
