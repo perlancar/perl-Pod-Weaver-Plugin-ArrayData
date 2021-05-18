@@ -75,37 +75,38 @@ sub _process_module {
         push @pod, "\n";
 
         push @pod, " # Another way to iterate\n";
-        push @pod, " \$${varname}->each_item(sub { my (\$item, \$obj, \$pos) = \@_; ... }); # return false in anonsub to exit early\n";
+        push @pod, " \$$varname\->each_item(sub { my (\$item, \$obj, \$pos) = \@_; ... }); # return false in anonsub to exit early\n";
         push @pod, "\n";
 
         push @pod, " # Get $name_entities by position (array index)\n";
-        push @pod, " my \$$name_entity = \$${varname}->get_item_at_pos(0);  # get the first $name_entity\n";
-        push @pod, " my \$$name_entity = \$${varname}->get_item_at_pos(90); # get the 91th $name_entity, will die if there is no $name_entity at that position.\n";
+        push @pod, " my \$$name_entity = \$$varname\->get_item_at_pos(0);  # get the first $name_entity\n";
+        push @pod, " my \$$name_entity = \$$varname\->get_item_at_pos(90); # get the 91th $name_entity, will die if there is no $name_entity at that position.\n";
         push @pod, "\n";
 
         push @pod, " # Get number of $name_entities in the list\n";
-        push @pod, " my \$count = \$${varname}->get_item_count;\n";
+        push @pod, " my \$count = \$$varname\->get_item_count;\n";
         push @pod, "\n";
 
         push @pod, " # Get all $name_entities from the list\n";
-        push @pod, " my \@all_$name_entities = \$${varname}->get_all_items;\n";
+        push @pod, " my \@all_$name_entities = \$$varname\->get_all_items;\n";
         push @pod, "\n";
 
-        push @pod, " # Find an item (by iterating). See Role::TinyCommons::Collection::FindItem for more details.\n";
-        push @pod, " my \@found = \${$varname}->find_item(item => 'foo');\n";
-        push @pod, " my \$has_item = \${$varname}->has_item('foo'); # bool\n";
+        push @pod, " # Find an item (by iterating). See Role::TinyCommons::Collection::FindItem::Iterator for more details.\n";
+        push @pod, " \$$varname\->apply_roles('FindItem::Iterator'); # or: \$$varname = $package->new->apply_roles(...);\n";
+        push @pod, " my \@found = \$$varname\->find_item(item => 'foo');\n";
+        push @pod, " my \$has_item = \$$varname\->has_item('foo'); # bool\n";
         push @pod, "\n";
 
-        push @pod, " # Find an item by binary searching (only when data source is filehandle and the data is sorted)\n";
-        push @pod, " Role::Tiny->apply_roles_to_object(\$${varname}, 'ArrayData::BinarySearch::LinesInHandle');\n";
-        push @pod, " my \@found = \${$varname}->find_item(item => 'foo');\n";
-        push @pod, " my \$has_item = \${$varname}->has_item('foo'); # bool\n";
+        push @pod, " # Find an item by binary searching (only when data source is filehandle and the data is sorted). See ArrayDataRole::BinarySearch::LinesInHandle for more details.\n";
+        push @pod, " \$$varname\->apply_roles('BinarySearch::LinesInHandle'); # or: \$$varname = $package->new->apply_roles(...);\n"
+        push @pod, " my \@found = \$$varname\->find_item(item => 'foo');\n";
+        push @pod, " my \$has_item = \$$varname\->has_item('foo'); # bool\n";
         push @pod, "\n";
 
         push @pod, " # Pick one or several random $name_entities (apply one of these roles first: Role::TinyCommons::Collection::PickItems::{Iterator,RandomSeek})\n";
-        push @pod, " Role::Tiny->apply_roles_to_object(\$${varname}, 'Role::TinyCommons::Collection::PickItems::Iterator');\n";
-        push @pod, " my \$$name_entity = \${$varname}->pick_item;\n";
-        push @pod, " my \@$name_entities = \${$varname}->pick_items(n=>3);\n\n";
+        push @pod, " \$$varname\->apply_roles('PickItems::Iterator'); # or: \$$varname = $package->new->apply_roles(...);\n";
+        push @pod, " my \$$name_entity = \$$varname\->pick_item;\n";
+        push @pod, " my \@$name_entities = \$$varname\->pick_items(n=>3);\n\n";
         push @pod, "\n";
 
         $self->add_text_to_section(
@@ -145,7 +146,7 @@ _
             $args = {foo=>1, bar=>2};
         }
 
-        push @pod, " my \${$varname} = $package\->(".
+        push @pod, " my \$$varname = $package\->(".
             join(", ", map {"$_ => $args->{$_}"} sort keys %$args).");\n\n";
 
         push @pod, <<_;
