@@ -70,7 +70,7 @@ sub _process_module {
         push @pod, " \$${varname}->reset_iterator;\n";
         push @pod, " while (\$${varname}->has_next_item) {\n";
         push @pod, "     my \$$name_entity = \$${varname}->get_next_item;\n";
-        push @pod, "     ... # do something about the $name_entity\n";
+        push @pod, "     ... # do something with the $name_entity\n";
         push @pod, " }\n";
         push @pod, "\n";
 
